@@ -13,7 +13,7 @@ interface PostgreSQLConfig {
     user: string;
     password: string;
     database: string;
-    ssl?: boolean | any; // You can configure SSL options here if needed
+    ssl?: boolean | any; // Optional SSL options
 }
 
 // Interface for Authentication State
@@ -25,6 +25,7 @@ interface State {
     };
 }
 
+// Utility functions for converting between buffer and JSON
 function bufferToJSON(obj: any): any {
     if (Buffer.isBuffer(obj)) {
         return { type: 'Buffer', data: Array.from(obj) };
@@ -96,8 +97,8 @@ class PostgreSQLAuthState {
     private pool: Pool;
     private sessionId: string;
 
-    constructor(config: PostgreSQLConfig, sessionId: string) {
-        this.pool = new Pool(config);
+    constructor(poolOrConfig: Pool | PostgreSQLConfig, sessionId: string) {
+        this.pool = poolOrConfig instanceof Pool ? poolOrConfig : new Pool(poolOrConfig);
         this.sessionId = sessionId;
         this.ensureTableExists();
     }
@@ -188,8 +189,8 @@ class PostgreSQLAuthState {
 }
 
 // Function to use PostgreSQL Authentication State
-async function usePostgreSQLAuthState(config: PostgreSQLConfig, sessionId: string) {
-    const authState = new PostgreSQLAuthState(config, sessionId);
+async function usePostgreSQLAuthState(poolOrConfig: Pool | PostgreSQLConfig, sessionId: string) {
+    const authState = new PostgreSQLAuthState(poolOrConfig, sessionId);
     const state = await authState.getAuthState();
 
     return {

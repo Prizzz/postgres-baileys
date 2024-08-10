@@ -50,6 +50,45 @@ async function main() {
 main();
 ```
 
+
+# OR
+
+
+```js
+import { Pool } from 'pg';
+import { usePostgreSQLAuthState } from './path-to-your-module'; // Adjust the path accordingly
+
+// Assuming you have an already connected Pool instance
+const pool = new Pool({
+    host: 'your-host',
+    port: 5432, // or your specific port
+    user: 'your-username',
+    password: 'your-password',
+    database: 'your-database',
+    ssl: true, // or your specific SSL configuration
+});
+
+// Define a session ID for this connection
+const sessionId = 'unique-session-id';
+
+async function main() {
+    // Use the PostgreSQL authentication state
+    const { state, saveCreds, deleteSession } = await usePostgreSQLAuthState(pool, sessionId);
+
+    // Now, you can interact with the state, save credentials, or delete the session
+    console.log('Initial Authentication State:', state);
+
+    // Example: Save the current credentials
+    await saveCreds();
+
+    // Example: Delete the session when needed
+    // await deleteSession();
+}
+
+main().catch(console.error);
+```
+
+
 ## Core Concepts
 
 1. **PostgreSQL Configuration:** Provide accurate connection details for your PostgreSQL database.
