@@ -100,7 +100,7 @@ class PostgreSQLAuthState {
     constructor(poolOrConfig: Pool | PostgreSQLConfig, sessionId: string) {
         this.pool = poolOrConfig instanceof Pool ? poolOrConfig : new Pool(poolOrConfig);
         this.sessionId = sessionId;
-        this.ensureTableExists();
+        this.ensureTableExists().catch(console.error); // Добавил логирование ошибок
     }
 
     private async ensureTableExists(): Promise<void> {
@@ -122,6 +122,9 @@ class PostgreSQLAuthState {
         try {
             const result = await client.query(query, params);
             return result.rows;
+        } catch (err) {
+            console.error('Database query error:', err);
+            throw err;
         } finally {
             client.release();
         }
@@ -154,26 +157,21 @@ class PostgreSQLAuthState {
             keys: {
                 get: async (type: string, ids: string[]) => {
                     const data: Record<string, any> = {};
-                    await Promise.all(
-                        ids.map(async (id) => {
-                            const value = await this.readData(`${type}-${id}`);
-                            if (type === 'app-state-sync-key' && value) {
-                                data[id] = proto.Message.AppStateSyncKeyData.fromObject(value);
-                            } else {
-                                data[id] = value;
-                            }
-                        })
-                    );
+                    for (const id of ids) {
+                        const value = await this.readData(`${type}-${id}`);
+                        data[id] = type === 'app-state-sync-key' && value
+                            ? proto.Message.AppStateSyncKeyData.fromObject(value)
+                            : value;
+                    }
                     return data;
                 },
                 set: async (data: Record<string, Record<string, any>>) => {
-                    const tasks = Object.entries(data).flatMap(([category, categoryData]) =>
-                        Object.entries(categoryData || {}).map(([id, value]) => {
+                    for (const [category, categoryData] of Object.entries(data)) {
+                        for (const [id, value] of Object.entries(categoryData || {})) {
                             const key = `${category}-${id}`;
-                            return value ? this.writeData(key, value) : this.removeData(key);
-                        })
-                    );
-                    await Promise.all(tasks);
+                            value ? await this.writeData(key, value) : await this.removeData(key);
+                        }
+                    }
                 },
             },
         };
